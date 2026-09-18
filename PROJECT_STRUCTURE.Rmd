@@ -1,0 +1,135 @@
+---
+title: "Blue-talk — Project Structure"
+subtitle: "Decentralized mesh messaging network in Go"
+author: "Eddy Odero"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    theme: readable
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+
+Blue-talk is a decentralized, multi-hop mesh messaging and file-transfer
+network. Devices ("nodes") discover each other and exchange encrypted
+messages and files over Bluetooth and local Wi-Fi, without needing an
+internet connection or a central server.
+
+The project doubles as a structured way to learn Go: rather than studying
+networking, concurrency, and cryptography in isolation, each concept is
+introduced at the point the project actually needs it.
+
+## Repository layout
+
+```{bash, eval=FALSE}
+blue-talk/
+├── go.mod
+├── README.md
+├── PROJECT_STRUCTURE.Rmd
+├── cmd/
+│   └── node/
+│       └── main.go          # entrypoint: starts listener + optional dial
+├── internal/
+│   ├── node/
+│   │   └── node.go          # Node struct, ID, listen/dial logic
+│   ├── message/
+│   │   └── message.go       # Message struct + encode/decode
+│   ├── discovery/           # (later) UDP broadcast / mDNS
+│   ├── routing/             # (later) routing table + algorithms
+│   ├── transport/           # (later) Bluetooth / Wi-Fi transports
+│   ├── crypto/              # (later) TLS + public-key encryption
+│   └── storage/             # (later) SQLite persistence
+└── web/                      # frontend (tech stack TBD)
+```
+
+## Tech stack
+
+| Layer            | Technology                      | Why                                  |
+|-------------------|----------------------------------|----------------------------------------|
+| Core language     | Go                               | Networking, concurrency, servers       |
+| Node runtime      | Go application                   | Every device becomes a node            |
+| Messaging         | TCP (initial)                    | Easy to understand and debug           |
+| Discovery         | UDP broadcast / mDNS (initial)   | Find nearby nodes                      |
+| Mesh routing      | Custom routing protocol          | Main learning/project challenge        |
+| Bluetooth         | BLE                              | Nearby-device communication            |
+| Local networking  | Wi-Fi / Wi-Fi Direct              | Faster communication                   |
+| File transfer     | TCP/HTTP (initial), chunked      | Reliable large transfers               |
+| Encryption        | TLS + public-key cryptography     | Secure end-to-end messages             |
+| Storage           | SQLite                           | Messages, devices, routes              |
+| Server            | Ubuntu Server                     | Optional supernode                     |
+| API               | Go HTTP API                       | Communication between UI and node      |
+| Frontend          | *TBD*                             | See "Frontend decision" below          |
+| Containers        | Docker                            | Reproducible deployment, node simulation |
+| Testing           | Go tests + network simulation     | Test mesh behavior                     |
+| Version control   | Git + GitHub                      | Source control                         |
+
+## Frontend decision (open)
+
+Two candidate directions, not yet finalized:
+
+1. **Web frontend** — React + TypeScript (+ Vite), served by the Go API.
+   Familiar tooling; still HTML/CSS/DOM under the hood, just abstracted
+   away by the framework.
+2. **Native desktop app** — Fyne (a pure-Go GUI toolkit). No HTML/CSS/JS
+   anywhere; the UI is written entirely in Go. A new toolkit to learn, but
+   keeps the whole project in one language.
+
+Target layout either way: an Outlook-style three-pane view — node/peer list,
+conversation list, message detail pane.
+
+## Message protocol
+
+```{json, eval=FALSE}
+{
+  "type": "message",
+  "id": "abc123",
+  "source": "nodeA",
+  "destination": "nodeE",
+  "ttl": 8,
+  "payload": "Hello!"
+}
+```
+
+Key fields:
+
+- **id** — unique message ID, so a node can recognize and drop duplicates it has already forwarded
+- **ttl** — time to live, so a message can't circulate the mesh forever
+
+## Development roadmap (10 stages)
+
+```{r roadmap, echo=FALSE}
+stages <- data.frame(
+  Stage = 1:10,
+  Focus = c(
+    "Go networking fundamentals",
+    "Two-node TCP messaging",
+    "Automatic discovery (UDP broadcast / mDNS)",
+    "Three+ node network",
+    "Routing (flooding -> smarter algorithms)",
+    "Store & forward for offline peers",
+    "Chunked file transfer",
+    "End-to-end encryption",
+    "Bluetooth / Wi-Fi transport integration",
+    "Ubuntu supernode + Docker packaging"
+  )
+)
+knitr::kable(stages)
+```
+
+## Current status
+
+Working through Stage 1 + 2: a two-node TCP handshake exchanging a shared
+JSON `Message` struct. No discovery, routing, Bluetooth, or encryption yet —
+deliberately kept minimal until the basic node-to-node link works.
+
+## Development environment
+
+- Windows PC: VS Code, Go, Git, Docker Desktop, WSL2/Ubuntu
+- Ubuntu Server: reserved for the eventual supernode role
+- No special hardware required for the current stage — everything runs over local TCP/UDP
